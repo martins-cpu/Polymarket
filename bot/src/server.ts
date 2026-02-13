@@ -65,8 +65,8 @@ export class BotServer {
     }
 
     public start() {
-        this.app.listen(this.port, () => {
-            console.log(`Bot Server running on http://localhost:${this.port}`);
+        this.app.listen(this.port, '0.0.0.0', () => {
+            console.log(`Bot Server running on http://0.0.0.0:${this.port}`);
         });
     }
 
