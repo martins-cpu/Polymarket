@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  polymarket-bot:
+    build: .
+    container_name: polymarket-bot
+    restart: always # Auto-restart on crash or server reboot
+    environment:
+      - LIVE_TRADING=true
+      - NODE_ENV=production
+    env_file:
+      - .env
+    # Volumes (Optional: Persist logs or saved_trades.json)
+    volumes:
+      - ./saved_trades.json:/app/saved_trades.json
+      - ./logs:/app/logs
