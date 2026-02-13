@@ -66,11 +66,13 @@ export class ClobClient {
             // SDK might default to GTC limits.
             const order = await this.client.createOrder({
                 tokenID: tokenId,
-                price: price.toString(),
+                price: price, // SDK expects number? Or String? 
+                // Error says: Type 'string' is not assignable to type 'number'.
+                // So SDK expects NUMBER.
                 side: sideEnum as any,
-                size: size.toString(),
+                size: size, // SDK expects NUMBER.
                 feeRateBps: 0,
-                nonce: Date.now(), // SDK usually handles nonce, but we can pass it
+                nonce: Date.now(),
             });
 
             console.log(`[CLOB] Order Placed! ID: ${order.orderID} | Status: ${order.status}`);
