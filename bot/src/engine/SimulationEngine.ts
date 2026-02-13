@@ -1,33 +1,14 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import { ReportingService, TradeRecord } from '../services/ReportingService.js';
 import { MarketOpportunity } from '../types/index.js';
 import { ClobClient } from '../clients/ClobClient.js';
 import { CONFIG } from '../config.js';
 
-interface Trade {
-    id: string;
-    marketId: string;
-    question: string;
-    asset: 'BTC' | 'ETH' | 'SOL' | 'ESPORTS';
-    type: 'BUY_YES' | 'BUY_NO';
-    entryPrice: number;
-    shares: number;
-    entryTimestamp: number;
-    status: 'OPEN' | 'CLOSED';
-    exitPrice?: number;
-    exitTimestamp?: number;
-    pnl?: number;
-    potentialReturn?: number;
-    currentPrice?: number;   // New: Track live price
-    unrealizedPnl?: number;  // New: Track theoretical PnL
-}
-
 export class SimulationEngine {
-    private trades: Trade[] = [];
+    private trades: TradeRecord[] = []; // Now uses TradeRecord interface
     private balance = 1000;
-    private betSize = CONFIG.MAX_TRADE_SIZE_USDC; // Start small
+    private betSize = CONFIG.MAX_TRADE_SIZE_USDC;
     private executedMarketIds: Set<string> = new Set();
-    private readonly STORAGE_FILE = path.join(__dirname, '../../saved_trades.json');
+    private reportingService: ReportingService;
 
     // NEW: Live Trading components
     private mode: 'SIMULATION' | 'MONITOR_ONLY' | 'LIVE_TRADING' = 'SIMULATION';
@@ -35,18 +16,21 @@ export class SimulationEngine {
 
     constructor(mode: 'SIMULATION' | 'MONITOR_ONLY' | 'LIVE_TRADING' = 'SIMULATION') {
         this.mode = mode;
+        this.reportingService = new ReportingService();
+        this.trades = this.reportingService.getTrades(); // Load from disk
+
         console.log(`[ENGINE] Starting in ${this.mode} mode.`);
 
         if (this.mode === 'LIVE_TRADING') {
             this.clobClient = new ClobClient();
         }
 
-        this.loadTrades();
-
         // Safety Override in Live Mode
         if (this.mode === 'LIVE_TRADING') {
             this.betSize = Math.min(this.betSize, CONFIG.MAX_TRADE_SIZE_USDC);
         }
+
+        this.startDailyReporting();
     }
 
     public handlePriceUpdate(update: any) {
@@ -68,30 +52,7 @@ export class SimulationEngine {
         this.updateOpenPositions(opp);
     }
 
-    private loadTrades() {
-        if (fs.existsSync(this.STORAGE_FILE)) {
-            try {
-                const data = fs.readFileSync(this.STORAGE_FILE, 'utf-8');
-                this.trades = JSON.parse(data);
-                this.trades.forEach(t => {
-                    if (t.status === 'OPEN') {
-                        this.executedMarketIds.add(`${t.marketId}-${t.type}`);
-                    }
-                });
-                console.log(`[ENGINE] Loaded ${this.trades.length} trades from storage.`);
-            } catch (err) {
-                console.error('[ENGINE] Failed to load trades:', err);
-            }
-        }
-    }
 
-    private saveTrades() {
-        try {
-            fs.writeFileSync(this.STORAGE_FILE, JSON.stringify(this.trades, null, 2));
-        } catch (err) {
-            console.error('[ENGINE] Failed to save trades:', err);
-        }
-    }
 
     public handleOpportunity(opp: MarketOpportunity) {
         // Always try to update existing trades first (Monitor)
@@ -217,17 +178,15 @@ export class SimulationEngine {
         const potentialProfit = potentialPayout - tradeSize;
 
         // PREPARE TRADE OBJECT
-        const trade: Trade = {
+        const trade: TradeRecord = {
             id: Math.random().toString(36).substring(7),
             marketId: opp.marketId,
-            question: opp.question,
             asset: opp.asset,
-            type,
-            entryPrice: price,
-            shares,
-            entryTimestamp: Date.now(),
-            status: 'OPEN',
-            potentialReturn: potentialProfit
+            type: type,
+            price: price, // entryPrice -> price
+            size: shares, // shares -> size
+            timestamp: Date.now(), // entryTimestamp -> timestamp
+            status: 'OPEN'
         };
 
         const tradeKey = `${opp.marketId}-${type}`;
@@ -242,31 +201,21 @@ export class SimulationEngine {
                 return;
             }
 
-            // BUY_YES -> Index 0. BUY_NO -> Index 1.
-            // Polymarket Tokens: [YesToken, NoToken] usually, verify order? 
-            // Standard is Yes = 0, No = 1 in our arrays from `clobTokenIds`.
             const tokenId = type === 'BUY_YES' ? opp.tokenIds[0] : opp.tokenIds[1];
 
             try {
-                // Ensure price is string, size is string
-                // Safety: Limit price to 2 decimals or proper tick size? CLOB handles it?
-                // Price MUST be string.
                 const order = await this.clobClient.placeOrder(tokenId, 'BUY', price, tradeSize);
 
                 trade.id = String(order.orderID);
                 trade.status = 'OPEN';
 
-                // Add to open trades immediately (OPTIMISTIC Update)
-                // Real confirmation relies on separate REST/WS check, but for now we assume Fill.
-                // NOTE: If FOK fails, this throws, and we don't add.
-
-                this.trades.push(trade);
+                this.reportingService.addTrade(trade); // Persist
                 this.executedMarketIds.add(tradeKey);
+
                 // Balance update is theoretical until we sync with chain, but keep track locally.
                 this.balance -= tradeSize;
 
                 console.log(`[LIVE] Trade Executed! ID: ${order.orderID}`);
-                this.saveTrades();
 
             } catch (err: any) {
                 console.error('[LIVE] Execution Failed:', err?.message || err);
@@ -275,11 +224,10 @@ export class SimulationEngine {
         }
         else {
             // SIMULATION
-            this.trades.push(trade);
+            this.reportingService.addTrade(trade);
             this.executedMarketIds.add(tradeKey);
             this.balance -= tradeSize;
             console.log(`[SIMULATION] Executed ${type} on ${opp.asset} @ $${price.toFixed(2)} | Shares: ${shares.toFixed(2)}`);
-            this.saveTrades();
         }
     }
 
@@ -287,9 +235,8 @@ export class SimulationEngine {
         // Equity = Cash + Value of Open Positions
         let openPositionValue = 0;
         this.trades.filter(t => t.status === 'OPEN').forEach(t => {
-            // Use current price if available, else entry price
-            const price = t.currentPrice ?? t.entryPrice;
-            openPositionValue += (t.shares * price);
+            const price = t.price; // Simplified, use entry price
+            openPositionValue += (t.size * price);
         });
 
         return {
@@ -300,12 +247,11 @@ export class SimulationEngine {
             activeTrades: this.trades.filter(t => t.status === 'OPEN').map(t => ({
                 id: t.id,
                 asset: t.asset,
-                question: t.question,
                 type: t.type,
-                entryPrice: t.entryPrice,
-                currentPrice: t.currentPrice,
-                unrealizedPnl: t.unrealizedPnl,
-                entryTime: t.entryTimestamp
+                entryPrice: t.price,
+                shares: t.size,
+                currentPrice: t.price, // Placeholder
+                pnl: 0 // Placeholder
             }))
         };
     }

@@ -18,6 +18,18 @@ export class BotServer {
         this.app.use(express.json());
 
         this.setupRoutes();
+
+        // Serve Dashboard
+        this.app.use(express.static('public'));
+        // Catch-all for SPA
+        this.app.get('*', (req, res) => {
+            // If API request, next() or 404, but here we just return index.html for non-api
+            if (req.path.startsWith('/api')) {
+                res.status(404).json({ error: 'Not Found' });
+                return;
+            }
+            res.sendFile('index.html', { root: 'public' });
+        });
     }
 
     private setupRoutes() {

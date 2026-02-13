@@ -1,23 +1,33 @@
+# ==========================================
+# Stage 1: Build Dashboard
+# ==========================================
+FROM node:18-alpine as dashboard-builder
+WORKDIR /app/dashboard
+COPY dashboard/package*.json ./
+RUN npm install
+COPY dashboard/ .
+# Build the dashboard (Output will be in /app/dashboard/dist)
+RUN npm run build
+
+# ==========================================
+# Stage 2: Build & Run Bot
+# ==========================================
 FROM node:18-alpine
 
-# Set working directory
+# Set working directory for BOT
 WORKDIR /app
 
-# Copy package files first for better caching
-COPY package*.json ./
-
-# Install dependencies
+# Install Bot Dependencies
+COPY bot/package*.json ./
 RUN npm install
+RUN npm install -g tsx
 
-# Install global tools if needed (optional, npm scripts handle it)
-# RUN npm install -g ts-node
+# Copy Bot Source Code
+COPY bot/ .
 
-# Copy source code
-COPY . .
-
-# Build step (optional if using ts-node, but good for checking errors)
-# RUN npm run build 
+# Copy Dashboard Build from Stage 1
+# We put it in /app/public so the Express server can serve it
+COPY --from=dashboard-builder /app/dashboard/dist ./public
 
 # Start command
-# We use the script from package.json
 CMD ["npm", "start"]

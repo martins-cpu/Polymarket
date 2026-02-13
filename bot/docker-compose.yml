@@ -2,9 +2,13 @@ version: '3.8'
 
 services:
   polymarket-bot:
-    build: .
+    build:
+      context: ..
+      dockerfile: bot/Dockerfile
     container_name: polymarket-bot
     restart: always # Auto-restart on crash or server reboot
+    ports:
+      - "3001:3001"
     environment:
       - LIVE_TRADING=true
       - NODE_ENV=production
