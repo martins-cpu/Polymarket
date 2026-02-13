@@ -253,7 +253,7 @@ export class SimulationEngine {
                 // Price MUST be string.
                 const order = await this.clobClient.placeOrder(tokenId, 'BUY', price, tradeSize);
 
-                trade.id = order.orderID;
+                trade.id = String(order.orderID);
                 trade.status = 'OPEN';
 
                 // Add to open trades immediately (OPTIMISTIC Update)
