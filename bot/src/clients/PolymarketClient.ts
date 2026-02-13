@@ -1,7 +1,7 @@
 import WebSocket from 'ws';
 import axios from 'axios';
 import { EventEmitter } from 'events';
-import { PolymarketUpdate } from '../types';
+import { PolymarketUpdate } from '../types/index.js';
 
 interface GammaMarket {
     id: string;

@@ -1,11 +1,11 @@
 import dotenv from 'dotenv';
-import { BinanceClient } from './clients/BinanceClient';
-import { CoinbaseClient } from './clients/CoinbaseClient';
-import { PolymarketClient } from './clients/PolymarketClient';
-import { PriceAggregator } from './strategy/PriceAggregator';
-import { LagStrategy } from './strategy/LagStrategy';
-import { SimulationEngine } from './engine/SimulationEngine';
-import { BotServer } from './server';
+import { BinanceClient } from './clients/BinanceClient.js';
+import { CoinbaseClient } from './clients/CoinbaseClient.js';
+import { PolymarketClient } from './clients/PolymarketClient.js';
+import { PriceAggregator } from './strategy/PriceAggregator.js';
+import { LagStrategy } from './strategy/LagStrategy.js';
+import { SimulationEngine } from './engine/SimulationEngine.js';
+import { BotServer } from './server.js';
 
 dotenv.config();
 

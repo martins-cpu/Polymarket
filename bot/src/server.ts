@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
-import { SimulationEngine } from './engine/SimulationEngine';
-import { AggregatedPrice } from './strategy/PriceAggregator';
-import { MarketOpportunity, PolymarketUpdate } from './types';
+import { SimulationEngine } from './engine/SimulationEngine.js';
+import { AggregatedPrice } from './strategy/PriceAggregator.js';
+import { MarketOpportunity, PolymarketUpdate } from './types/index.js';
 
 export class BotServer {
     private app;

@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { MarketOpportunity } from '../types';
-import { ClobClient } from '../clients/ClobClient';
-import { CONFIG } from '../config';
+import { MarketOpportunity } from '../types/index.js';
+import { ClobClient } from '../clients/ClobClient.js';
+import { CONFIG } from '../config.js';
 
 interface Trade {
     id: string;

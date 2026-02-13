@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { CONFIG } from './config';
+import { CONFIG } from './config.js';
 import * as dotenv from 'dotenv';
 dotenv.config();
 

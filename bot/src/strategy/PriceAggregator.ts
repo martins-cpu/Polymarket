@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import { PriceUpdate } from '../types';
-import Decimal from 'decimal.js';
+import { PriceUpdate } from '../types/index.js';
+import { Decimal } from 'decimal.js';
 
 export interface AggregatedPrice {
     asset: 'BTC' | 'ETH' | 'SOL' | 'ESPORTS';

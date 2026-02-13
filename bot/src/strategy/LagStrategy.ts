@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import axios from 'axios';
-import { AggregatedPrice } from './PriceAggregator';
-import { PolymarketUpdate, MarketOpportunity } from '../types';
+import { AggregatedPrice } from './PriceAggregator.js';
+import { PolymarketUpdate, MarketOpportunity } from '../types/index.js';
 
 export class LagStrategy extends EventEmitter {
     private lastSpotPrices: Map<string, number> = new Map(); // asset -> price

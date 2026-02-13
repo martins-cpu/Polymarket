@@ -1,6 +1,6 @@
 import WebSocket from 'ws';
 import { EventEmitter } from 'events';
-import { PriceUpdate } from '../types';
+import { PriceUpdate } from '../types/index.js';
 
 export class CoinbaseClient extends EventEmitter {
     private ws: WebSocket | null = null;
