@@ -207,6 +207,7 @@ export class PolymarketClient extends EventEmitter {
                                     asset,
                                     marketId: market.id,
                                     question: market.question,
+                                    strikePrice: 0, // Dynamic (handled in strategy)
                                     yesPrice,
                                     noPrice,
                                     timestamp: Date.now(),
