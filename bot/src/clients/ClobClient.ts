@@ -22,6 +22,7 @@ export class ClobClient {
         try {
             this.wallet = new ethers.Wallet(pk);
             console.log(`[CLOB] Wallet loaded: ${this.wallet.address}`);
+            try { require('fs').appendFileSync('debug.log', `[CLOB] Wallet Loaded: ${this.wallet.address}\n`); } catch (e) { }
 
             // Initialize Client
             this.client = new PolyClobClient(
