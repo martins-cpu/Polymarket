@@ -108,8 +108,11 @@ export class SimulationEngine {
             // Calculate Unrealized PnL
             // Value = Shares * CurrentPrice
             // PnL = Value - CostBasis (EntryPrice * Shares)
-            const currentValue = trade.shares * currentPrice;
-            const costBasis = trade.shares * trade.entryPrice;
+            const shares = trade.shares || trade.size || 0;
+            const entryPrice = trade.entryPrice || trade.price || 0;
+
+            const currentValue = shares * currentPrice;
+            const costBasis = shares * entryPrice;
 
             // Avoid NaN if price missing
             if (!isNaN(currentPrice)) {
@@ -129,22 +132,15 @@ export class SimulationEngine {
         }
     }
 
-    private async closeTrade(trade: Trade, exitPrice: number, reason: string) {
+    private async closeTrade(trade: TradeRecord, exitPrice: number, reason: string) { // Use TradeRecord
         console.log(`[EXIT] Attempting to close ${trade.id} (${reason}) @ $${exitPrice.toFixed(2)}...`);
 
         if (this.mode === 'LIVE_TRADING' && this.clobClient) {
             // LIVE EXIT: Place opposite order
-            // If we bought YES, we SELL YES. (Or Buy NO? Polymarket usually means Sell Position).
-            // CLOB Client needs to support SELL.
-            const side = trade.type === 'BUY_YES' ? 'SELL' : 'SELL'; // "Selling the YES shares" or "Selling the NO shares"
+            const side = trade.type === 'BUY_YES' ? 'SELL' : 'SELL';
 
-            // Wait, "BUY_NO" means we hold "NO" tokens. To exit, we SELL "NO" tokens.
-            // Polymarket API uses TokenID. 
-            // We didn't store TokenID in Trade struct properly? 
-            // Wait, we stored `marketId`. The CLOB needs `tokenID`.
-            // Currently our `Trade` struct lacks `tokenId`. 
+            // FIXME: Missing TokenId storage in trade record for live exit
             // For now, in LIVE mode, we might fail to exit if we don't have tokenId.
-            // FIXME: We need to store tokenId in Trade. Only Simulaton stored simplified data.
             console.warn('[EXIT] Live Exit not fully implemented (missing TokenId storage). Manual Close Required.');
             return;
         }
@@ -155,15 +151,18 @@ export class SimulationEngine {
         trade.exitTimestamp = Date.now();
 
         // Final PnL
-        const currentValue = trade.shares * exitPrice;
-        const costBasis = trade.shares * trade.entryPrice;
+        const shares = trade.shares || trade.size || 0;
+        const entryPrice = trade.entryPrice || trade.price || 0;
+
+        const currentValue = shares * exitPrice;
+        const costBasis = shares * entryPrice;
         trade.pnl = currentValue - costBasis;
 
         this.balance += currentValue; // Return capital + profit
         this.executedMarketIds.delete(`${trade.marketId}-${trade.type}`);
 
         console.log(`[EXIT] Closed ${trade.id} (${reason}) @ $${exitPrice.toFixed(2)}. PnL: $${trade.pnl.toFixed(2)}`);
-        this.saveTrades();
+        this.reportingService.addTrade(trade); // Save via service
     }
 
     private async executeTrade(type: 'BUY_YES' | 'BUY_NO', price: number, opp: MarketOpportunity) {
@@ -209,6 +208,9 @@ export class SimulationEngine {
                 trade.id = String(order.orderID);
                 trade.status = 'OPEN';
 
+                // Add token IDs for potential exit later
+                trade.tokenIds = opp.tokenIds;
+
                 this.reportingService.addTrade(trade); // Persist
                 this.executedMarketIds.add(tradeKey);
 
@@ -240,10 +242,12 @@ export class SimulationEngine {
         });
 
         return {
-            balance: this.balance + openPositionValue,
+            balance: this.mode === 'LIVE_TRADING' ? 0 : (this.balance + openPositionValue),
             cash: this.balance,
             openTrades: this.trades.filter(t => t.status === 'OPEN').length,
             totalTrades: this.trades.length,
+            mode: this.mode,
+            wallet: this.clobClient ? this.clobClient.getAddress() : 'Simulation',
             activeTrades: this.trades.filter(t => t.status === 'OPEN').map(t => ({
                 id: t.id,
                 asset: t.asset,
@@ -274,13 +278,7 @@ export class SimulationEngine {
     }
 
     private generateDailyReport() {
-        const stats = this.getStats();
-        const metrics = {
-            totalTrades: stats.totalTrades,
-            winRate: 0, // Calculate if needed
-            pnl: stats.balance - 1000 // Assuming start 1000
-        };
-        console.log('[REPORTING] Generating Daily Report...');
-        this.reportingService.generateDailyReport(metrics);
+        const report = this.reportingService.getDailyReport();
+        console.log(report);
     }
 }

@@ -11,6 +11,16 @@ export interface TradeRecord {
     timestamp: number;
     status: 'OPEN' | 'CLOSED';
     pnl?: number; // Realized PnL
+
+    // Monitoring Fields (Optional)
+    question?: string;
+    currentPrice?: number;
+    shares?: number; // Legacy alias for size
+    entryPrice?: number; // Legacy alias for price
+    unrealizedPnl?: number;
+    exitPrice?: number;
+    exitTimestamp?: number;
+    tokenIds?: string[];
 }
 
 export class ReportingService {

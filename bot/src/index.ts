@@ -56,6 +56,10 @@ async function main() {
 
         // Feed Aggregated Spot to Strategy
         aggregator.on('price', (p) => {
+            // Log locally to debug file to prove life
+            if (Math.random() < 0.05) { // 5% sample to avoid spam
+                log(`[SPOT] ${p.asset}: $${p.price.toFixed(2)}`);
+            }
             strategy.handleSpotPrice(p);
             server.updateSpotPrice(p);
         });
@@ -73,7 +77,7 @@ async function main() {
             server.addOpportunity(opp);
         });
 
-        log('Bot initialized and running in simulation mode.');
+        log(`Bot initialized and running in ${mode} mode.`);
     } catch (err: any) {
         log(`CRASH: ${err.message}\n${err.stack}`);
     }
