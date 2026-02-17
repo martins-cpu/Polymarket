@@ -28,7 +28,10 @@ async function main() {
     const simEngine = new SimulationEngine(mode);
     const server = new BotServer(simEngine);
 
+    console.log('[INDEX] Initialized Server. Starting...');
     server.start();
+    console.log('[INDEX] Server start() called.');
+
 
     // Wire up events
 
