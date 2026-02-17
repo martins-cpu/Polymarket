@@ -78,38 +78,91 @@ export class LagStrategy extends EventEmitter {
         if (Date.now() - lastFetch < 5000) return null; // Don't spam API
         this.lastFetchTime.set(marketId, Date.now());
 
+        // If start time is in future + buffer, we can't know the open price yet
+        if (startTime.getTime() > Date.now() + 60000) return null;
+
+        // Try Binance First
         try {
-            // If start time is in future + buffer, we can't know the open price yet
-            if (startTime.getTime() > Date.now() + 60000) return null;
+            const price = await this.fetchBinanceCandle(asset, startTime);
+            if (price) {
+                this.marketReferencePrices.set(marketId, price);
+                console.log(`[STRATEGY] Resolved Ref Price (Binance) for ${asset}: ${price}`);
+                return price;
+            }
+        } catch (e) {
+            console.warn(`[STRATEGY] Binance Ref check failed: ${e}`);
+        }
 
-            // Binance API: https://api.binance.com/api/v3/klines
-            const symbol = `${asset}USDT`;
-            const interval = '15m'; // Up/Down are usually 15m or 1h. 
-            // We request the candle AT verify time. 
-            // Actually Polymarket 'Start Time' is the lock time/open time of the candle.
+        // Try Coinbase Fallback
+        try {
+            const price = await this.fetchCoinbaseCandle(asset, startTime);
+            if (price) {
+                this.marketReferencePrices.set(marketId, price);
+                console.log(`[STRATEGY] Resolved Ref Price (Coinbase) for ${asset}: ${price}`);
+                return price;
+            }
+        } catch (e) {
+            console.warn(`[STRATEGY] Coinbase Ref check failed: ${e}`);
+        }
 
-            const startTs = startTime.getTime();
+        return null;
+    }
 
+    private async fetchBinanceCandle(asset: string, startTime: Date): Promise<number | null> {
+        const symbol = `${asset}USDT`;
+        const startTs = startTime.getTime();
+
+        try {
             const res = await axios.get('https://api.binance.com/api/v3/klines', {
                 params: {
                     symbol,
-                    interval,
+                    interval: '15m',
                     startTime: startTs,
                     limit: 1
-                }
+                },
+                timeout: 3000
             });
-
             if (res.data && res.data.length > 0) {
-                const candle = res.data[0];
-                const openPrice = parseFloat(candle[1]);
-
-                // Cache it
-                this.marketReferencePrices.set(marketId, openPrice);
-                console.log(`[STRATEGY] Resolved Ref Price for ${asset} ${marketId} (Start: ${startTime.toISOString()}): ${openPrice}`);
-                return openPrice;
+                return parseFloat(res.data[0][1]);
             }
         } catch (err) {
-            console.error(`Error fetching Binance candle for ${asset}:`, err);
+            // throw err; // Let caller handle
+        }
+        return null;
+    }
+
+    private async fetchCoinbaseCandle(asset: string, startTime: Date): Promise<number | null> {
+        // Coinbase: /products/{id}/candles
+        // Granularity 900 = 15m
+        const productId = `${asset}-USD`;
+        // Coinbase wants ISO strings or similar? No, standard params usually.
+        // Actually Coinbase Pro API kwargs: start, end, granularity
+        // Start must be ISO 8601
+
+        const startIso = startTime.toISOString();
+        const endIso = new Date(startTime.getTime() + 15 * 60 * 1000).toISOString();
+
+        try {
+            const res = await axios.get(`https://api.exchange.coinbase.com/products/${productId}/candles`, {
+                params: {
+                    start: startIso,
+                    end: endIso,
+                    granularity: 900
+                },
+                headers: { 'User-Agent': 'Mozilla/5.0' }, // Anti-bot bypass sometimes
+                timeout: 3000
+            });
+
+            // Response is array of buckets: [ time, low, high, open, close, volume ]
+            if (res.data && res.data.length > 0) {
+                // We want OPEN price. Coinbase returns newest first? 
+                // We requested a specific 15m window.
+                // Bucket: [ time, low, high, open, close, volume ] -> Index 3 is Open
+                const candle = res.data[res.data.length - 1]; // Oldest (closest to start)
+                return candle[3];
+            }
+        } catch (err: any) {
+            console.warn(`Coinbase Error details: ${err.message}`);
         }
         return null;
     }
