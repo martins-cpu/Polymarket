@@ -207,12 +207,12 @@ export class PolymarketClient extends EventEmitter {
                                     asset,
                                     marketId: market.id,
                                     question: market.question,
-                                    strikePrice: 0, // Dynamic (handled in strategy)
                                     yesPrice,
                                     noPrice,
                                     timestamp: Date.now(),
                                     marketType: 'UP_DOWN',
-                                    startTime
+                                    startTime,
+                                    tokenIds: market.clobTokenIds as any // Add tokenIds
                                 };
                                 console.log(`[AMM Poll] ${asset} Price: ${yesPrice.toFixed(2)} (${market.question})`);
                                 this.emit('polymarket_price', update);
