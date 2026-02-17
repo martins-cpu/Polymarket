@@ -32,7 +32,7 @@ export class BotServer {
         this.app.use(express.static('public'));
 
         // Catch-all for SPA
-        this.app.get('(.*)', (req, res) => {
+        this.app.get(/.*/, (req, res) => {
             if (req.path.startsWith('/api')) {
                 res.status(404).json({ error: 'Not Found' });
                 return;
