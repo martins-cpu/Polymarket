@@ -14,16 +14,25 @@ export class BotServer {
 
     constructor(private simEngine: SimulationEngine) {
         this.app = express();
+
+        // Request Logging Middleware
+        this.app.use((req, res, next) => {
+            console.log(`[SERVER] ${req.method} ${req.path}`);
+            next();
+        });
+
         this.app.use(cors());
         this.app.use(express.json());
 
         this.setupRoutes();
 
         // Serve Dashboard
+        // Verify path exists
+        console.log('[SERVER] Serving static files from public/ folder');
         this.app.use(express.static('public'));
+
         // Catch-all for SPA
         this.app.get('*', (req, res) => {
-            // If API request, next() or 404, but here we just return index.html for non-api
             if (req.path.startsWith('/api')) {
                 res.status(404).json({ error: 'Not Found' });
                 return;
@@ -65,9 +74,18 @@ export class BotServer {
     }
 
     public start() {
-        this.app.listen(this.port, '0.0.0.0', () => {
-            console.log(`Bot Server running on http://0.0.0.0:${this.port}`);
-        });
+        console.log(`[SERVER] Attempting to start server on 0.0.0.0:${this.port}`);
+        try {
+            const server = this.app.listen(this.port, '0.0.0.0', () => {
+                console.log(`[SERVER] Bot Server running on http://0.0.0.0:${this.port}`);
+            });
+
+            server.on('error', (err: any) => {
+                console.error('[SERVER] Critical Error:', err);
+            });
+        } catch (e) {
+            console.error('[SERVER] Startup Exception:', e);
+        }
     }
 
     public updateSpotPrice(p: AggregatedPrice) {
