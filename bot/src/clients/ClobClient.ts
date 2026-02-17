@@ -24,11 +24,23 @@ export class ClobClient {
             console.log(`[CLOB] Wallet loaded: ${this.wallet.address}`);
             try { require('fs').appendFileSync('debug.log', `[CLOB] Wallet Loaded: ${this.wallet.address}\n`); } catch (e) { }
 
+            // Check for Proxy Configuration
+            const funderAddress = process.env.FUNDER_ADDRESS;
+            const signatureType = process.env.SIGNATURE_TYPE ? parseInt(process.env.SIGNATURE_TYPE) : undefined;
+
+            if (funderAddress) {
+                console.log(`[CLOB] Proxy Trading Enabled. Funder: ${funderAddress}, SigType: ${signatureType}`);
+                try { require('fs').appendFileSync('debug.log', `[CLOB] Proxy Trading Enabled. Funder: ${funderAddress}\n`); } catch (e) { }
+            }
+
             // Initialize Client
             this.client = new PolyClobClient(
                 'https://clob.polymarket.com',
                 this.chainId,
-                this.wallet
+                this.wallet,
+                undefined, // options
+                signatureType, // signatureType (0, 1, 2)
+                funderAddress // funderAddress
             );
 
             // Derive or create API Credentials (L2 headers)
@@ -65,7 +77,7 @@ export class ClobClient {
             // Create Order
             // FOK (Fill or Kill) or GTC. For sniping, FOK is safer, OR IoC. 
             // SDK might default to GTC limits.
-            const order = await this.client.createOrder({
+            const orderArgs: any = {
                 tokenID: tokenId,
                 price: price, // SDK expects number? Or String? 
                 // Error says: Type 'string' is not assignable to type 'number'.
@@ -74,7 +86,19 @@ export class ClobClient {
                 size: size, // SDK expects NUMBER.
                 feeRateBps: 0,
                 nonce: Date.now(),
-            });
+            };
+
+            // PROXY SUPPORT: If FUNDER_ADDRESS is set, we must specify it in the order
+            const funderAddress = process.env.FUNDER_ADDRESS;
+            if (funderAddress) {
+                // When using a Proxy, the SDK might need specific args or the client might be init differently.
+                // Actually, the PolyClobClient constructor takes `funderAddress`? No, it takes `signer`.
+                // Checking SDK docs: createOrder takes `OrderArgs`.
+                // OrderArgs doesn't usually take funder. The `ClobClient` instance holds the state.
+                // WAIT: The SDK init in constructor didn't use options.
+            }
+
+            const order = await this.client.createOrder(orderArgs);
 
             console.log(`[CLOB] Order Placed! ID: ${order.orderID} | Status: ${order.status}`);
             return order;
