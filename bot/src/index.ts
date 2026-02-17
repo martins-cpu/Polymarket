@@ -11,15 +11,38 @@ dotenv.config();
 
 import * as fs from 'fs';
 
-function log(msg: string) {
+const originalLog = console.log;
+const originalWarn = console.warn;
+const originalError = console.error;
+
+function fileLog(prefix: string, args: any[]) {
     const time = new Date().toISOString();
-    const line = `[${time}] ${msg}\n`;
-    console.log(msg); // Keep console
+    const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+    const line = `[${time}] ${prefix} ${msg}\n`;
     try {
         fs.appendFileSync('debug.log', line);
     } catch (e) {
         // ignore
     }
+}
+
+console.log = (...args) => {
+    originalLog(...args);
+    fileLog('', args);
+};
+
+console.warn = (...args) => {
+    originalWarn(...args);
+    fileLog('[WARN]', args);
+};
+
+console.error = (...args) => {
+    originalError(...args);
+    fileLog('[ERROR]', args);
+};
+
+function log(msg: string) {
+    console.log(msg); // Now uses our patched version
 }
 
 async function main() {
@@ -66,6 +89,9 @@ async function main() {
 
         // Feed Polymarket Data to Strategy
         polymarket.on('polymarket_price', (p) => {
+            if (Math.random() < 0.05) { // 5% sample
+                console.log(`[POLY] ${p.asset}: ${p.yesPrice.toFixed(2)}`);
+            }
             strategy.handlePolymarketUpdate(p);
             server.updatePolyPrice(p);
             simEngine.handlePriceUpdate(p);

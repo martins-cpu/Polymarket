@@ -19,7 +19,10 @@ export class LagStrategy extends EventEmitter {
 
         // 2. Get Live Spot Price
         const spotPrice = this.lastSpotPrices.get(update.asset);
-        if (!spotPrice) return; // No live data yet
+        if (!spotPrice) {
+            if (Math.random() < 0.01) console.log(`[STRATEGY] Waiting for Spot Price for ${update.asset}`);
+            return;
+        }
 
         // 3. Get Reference Price (Strike)
         // For Up/Down, Strike is the "Open Price" of the candle at startTime.
@@ -28,7 +31,10 @@ export class LagStrategy extends EventEmitter {
         if (referencePrice === undefined) {
             // Attempt to resolve reference price
             const fetched = await this.resolveReferencePrice(update.asset, update.startTime, update.marketId);
-            if (fetched === null) return; // Can't trade without knowing the anchor
+            if (fetched === null) {
+                if (Math.random() < 0.01) console.log(`[STRATEGY] Failed to resolve Ref Price for ${update.asset}`);
+                return; // Can't trade without knowing the anchor
+            }
             referencePrice = fetched;
         }
 
@@ -60,6 +66,9 @@ export class LagStrategy extends EventEmitter {
                 console.log(`[LATENCY] ${update.asset} DOWN! Spot: ${spotPrice.toFixed(2)} < Ref: ${referencePrice.toFixed(2)} (${deltaPercent.toFixed(3)}%). Poly: ${update.yesPrice.toFixed(2)}`);
                 this.emitOpportunity(update, spotPrice, referencePrice, 0.05, 'BUY_NO');
             }
+        }
+        else {
+            if (Math.random() < 0.01) console.log(`[STRATEGY] Delta ${deltaPercent.toFixed(3)}% < Threshold ${MOMENTUM_THRESHOLD}% (${update.asset})`);
         }
     }
 
