@@ -255,4 +255,32 @@ export class SimulationEngine {
             }))
         };
     }
+
+    private startDailyReporting() {
+        // Schedule Report for 00:00 UTC
+        const now = new Date();
+        const nextMidnight = new Date(now);
+        nextMidnight.setUTCHours(24, 0, 0, 0); // Next midnight
+
+        const timeToMidnight = nextMidnight.getTime() - now.getTime();
+
+        console.log(`[REPORTING] Next report scheduled in ${Math.round(timeToMidnight / 1000 / 60)} minutes.`);
+
+        setTimeout(() => {
+            this.generateDailyReport();
+            // Schedule next loop
+            setInterval(() => this.generateDailyReport(), 24 * 60 * 60 * 1000);
+        }, timeToMidnight);
+    }
+
+    private generateDailyReport() {
+        const stats = this.getStats();
+        const metrics = {
+            totalTrades: stats.totalTrades,
+            winRate: 0, // Calculate if needed
+            pnl: stats.balance - 1000 // Assuming start 1000
+        };
+        console.log('[REPORTING] Generating Daily Report...');
+        this.reportingService.generateDailyReport(metrics);
+    }
 }
