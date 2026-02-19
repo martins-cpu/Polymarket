@@ -84,7 +84,6 @@ export class ClobClient {
                 // So SDK expects NUMBER.
                 side: sideEnum as any,
                 size: size, // SDK expects NUMBER.
-                feeRateBps: 0,
                 nonce: Date.now(),
             };
 
