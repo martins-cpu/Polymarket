@@ -20,7 +20,8 @@ function fileLog(prefix: string, args: any[]) {
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
     const line = `[${time}] ${prefix} ${msg}\n`;
     try {
-        fs.appendFileSync('debug.log', line);
+        if (!fs.existsSync('logs')) fs.mkdirSync('logs');
+        fs.appendFileSync('logs/debug.log', line);
     } catch (e) {
         // ignore
     }
@@ -50,7 +51,7 @@ async function main() {
 
     try {
         // Initialize Clients
-        const binance = new BinanceClient();
+        // const binance = new BinanceClient(); // Disabled due to Geo-block (451 error)
         const coinbase = new CoinbaseClient();
         const polymarket = new PolymarketClient();
 
@@ -74,7 +75,7 @@ async function main() {
         // ... (keep existing wiring)
 
         // Feed Spot Prices to Aggregator
-        binance.on('price', (p) => aggregator.handlePriceUpdate(p));
+        // binance.on('price', (p) => aggregator.handlePriceUpdate(p));
         coinbase.on('price', (p) => aggregator.handlePriceUpdate(p));
 
         // Feed Aggregated Spot to Strategy

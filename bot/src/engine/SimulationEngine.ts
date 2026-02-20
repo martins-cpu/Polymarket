@@ -212,6 +212,7 @@ export class SimulationEngine {
                 trade.tokenIds = opp.tokenIds;
 
                 this.reportingService.addTrade(trade); // Persist
+                this.logTradeToCSV(trade);
                 this.executedMarketIds.add(tradeKey);
 
                 // Balance update is theoretical until we sync with chain, but keep track locally.
@@ -280,5 +281,18 @@ export class SimulationEngine {
     private generateDailyReport() {
         const report = this.reportingService.getDailyReport();
         console.log(report);
+    }
+
+    private logTradeToCSV(trade: TradeRecord) {
+        const line = `${new Date(trade.timestamp).toISOString()},${trade.marketId},${trade.asset},${trade.type},${trade.price},${trade.size},${trade.id},${trade.status}\n`;
+        try {
+            // Ensure logs dir exists (it should, but safety first)
+            // if (!fs.existsSync('logs')) fs.mkdirSync('logs'); // Sync check might be heavy in loop, but OK for low freq
+            // Actually index.ts handles dir creation usually, but let's be safe or just write.
+            // Using require to avoid top-level import if strictly needed, or just import fs at top.
+            require('fs').appendFileSync('logs/trades.csv', line);
+        } catch (e) {
+            console.error('[CSV] Failed to log trade:', e);
+        }
     }
 }
