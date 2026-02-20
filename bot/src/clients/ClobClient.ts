@@ -54,6 +54,18 @@ export class ClobClient {
             try {
                 const creds = await this.client.deriveApiKey();
                 console.log('[CLOB] API Key derived successfully.');
+
+                // RE-INITIALIZE client with credentials to authenticate the session
+                this.client = new PolyClobClient(
+                    'https://clob.polymarket.com',
+                    this.chainId,
+                    this.wallet,
+                    creds, // Pass derived credentials
+                    signatureType,
+                    funderAddress
+                );
+                console.log('[CLOB] Authenticated client initialized.');
+
             } catch (authErr) {
                 console.error('[CLOB] Failed to derive API Key:', authErr);
             }

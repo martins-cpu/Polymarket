@@ -33,10 +33,20 @@ async function main() {
     try {
         console.log('Deriving API Key...');
         const creds = await client.deriveApiKey();
-        console.log('API Key Derived:', creds.apiKey !== undefined);
+        console.log('API Key Derived:', creds.key !== undefined);
+
+        console.log('Re-initializing client with derived credentials...');
+        const authenticatedClient = new ClobClient(
+            'https://clob.polymarket.com',
+            137,
+            wallet,
+            creds,
+            signatureType,
+            funderAddress
+        );
 
         console.log('Fetching Open Orders...');
-        const orders = await client.getOpenOrders();
+        const orders = await authenticatedClient.getOpenOrders();
         console.log('Open Orders:', orders);
     } catch (e: any) {
         console.error('Proxy Error:', e?.message || e);
