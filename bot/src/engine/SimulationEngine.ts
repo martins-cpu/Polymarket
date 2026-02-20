@@ -232,7 +232,7 @@ export class SimulationEngine {
             try {
                 const order = await this.clobClient.placeOrder(tokenId, 'BUY', price, tradeSize);
 
-                trade.id = String(order.orderID);
+                trade.id = String(order.orderID || order.id || (order.order ? order.order.id : 'unknown'));
                 trade.status = 'OPEN';
 
                 // Add token IDs for potential exit later

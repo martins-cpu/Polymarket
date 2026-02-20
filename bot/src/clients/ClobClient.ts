@@ -19,6 +19,11 @@ export class ClobClient {
             return;
         }
 
+        const funderAddress = process.env.FUNDER_ADDRESS;
+        if (!funderAddress) {
+            console.warn('[CLOB] CRITICAL WARNING: No FUNDER_ADDRESS found in .env! You must provide the Polymarket Proxy address to trade live.');
+        }
+
         try {
             this.wallet = new ethers.Wallet(pk);
             console.log(`[CLOB] Wallet loaded: ${this.wallet.address}`);
@@ -98,11 +103,19 @@ export class ClobClient {
             }
 
             const signedOrder = await this.client.createOrder(orderArgs);
-            const order = await this.client.postOrder(signedOrder);
+            const orderRes = await this.client.postOrder(signedOrder);
 
-            const orderIdStr = (order as any).orderID || (order as any).id || ((order as any).order ? (order as any).order.id : JSON.stringify(order).substring(0, 80));
-            console.log(`[CLOB] Order Placed! ID: ${orderIdStr} | Status: ${(order as any).status || 'unknown'}`);
-            return order;
+            // Polymarket API sometimes returns HTTP 200 with an error object
+            if (orderRes && orderRes.errorMsg) {
+                throw new Error(`API Rejected Order: ${orderRes.errorMsg}`);
+            }
+            if (orderRes && orderRes.success === false) {
+                throw new Error(`Order API Success=false: ${JSON.stringify(orderRes)}`);
+            }
+
+            const orderIdStr = (orderRes as any).orderID || (orderRes as any).id || ((orderRes as any).order ? (orderRes as any).order.id : JSON.stringify(orderRes).substring(0, 80));
+            console.log(`[CLOB] Order Placed! ID: ${orderIdStr} | Status: ${(orderRes as any).status || 'unknown'}`);
+            return orderRes;
 
         } catch (err: any) {
             console.error(`[CLOB] Order Failed:`, err?.message || err);
