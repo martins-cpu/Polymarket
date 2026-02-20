@@ -2,6 +2,7 @@ import { ReportingService, TradeRecord } from '../services/ReportingService.js';
 import { MarketOpportunity } from '../types/index.js';
 import { ClobClient } from '../clients/ClobClient.js';
 import { CONFIG } from '../config.js';
+import * as fs from 'fs';
 
 export class SimulationEngine {
     private trades: TradeRecord[] = []; // Now uses TradeRecord interface
@@ -309,9 +310,8 @@ export class SimulationEngine {
         try {
             // Ensure logs dir exists (it should, but safety first)
             // if (!fs.existsSync('logs')) fs.mkdirSync('logs'); // Sync check might be heavy in loop, but OK for low freq
-            // Actually index.ts handles dir creation usually, but let's be safe or just write.
-            // Using require to avoid top-level import if strictly needed, or just import fs at top.
-            require('fs').appendFileSync('logs/trades.csv', line);
+            // Use imported fs module
+            fs.appendFileSync('logs/trades.csv', line);
         } catch (e) {
             console.error('[CSV] Failed to log trade:', e);
         }

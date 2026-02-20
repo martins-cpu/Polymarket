@@ -99,7 +99,8 @@ export class ClobClient {
 
             const order = await this.client.createOrder(orderArgs);
 
-            console.log(`[CLOB] Order Placed! ID: ${order.orderID} | Status: ${order.status}`);
+            const orderIdStr = (order as any).orderID || (order as any).id || ((order as any).order ? (order as any).order.id : JSON.stringify(order).substring(0, 80));
+            console.log(`[CLOB] Order Placed! ID: ${orderIdStr} | Status: ${(order as any).status || 'unknown'}`);
             return order;
 
         } catch (err: any) {
