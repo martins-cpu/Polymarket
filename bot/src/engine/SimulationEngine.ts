@@ -55,11 +55,18 @@ export class SimulationEngine {
 
 
     public handleOpportunity(opp: MarketOpportunity) {
+        console.log(`[ENGINE TRACE] Received opportunity for ${opp.asset}. Prob: ${opp.impliedProbability}`);
+
         // Always try to update existing trades first (Monitor)
-        this.updateOpenPositions(opp);
+        try {
+            this.updateOpenPositions(opp);
+        } catch (e) {
+            console.error('[ENGINE TRACE] Error in updateOpenPositions:', e);
+        }
 
         // If in Monitor Mode, STOP here.
         if (this.mode === 'MONITOR_ONLY') {
+            console.log('[ENGINE TRACE] Aborted: Application is in MONITOR_ONLY mode');
             return;
         }
 
@@ -70,33 +77,47 @@ export class SimulationEngine {
         if (opp.impliedProbability > 0.8) type = 'BUY_YES';
         else if (opp.impliedProbability < 0.2) type = 'BUY_NO';
 
-        if (!type) return;
+        if (!type) return; // Silent return for non-actionable probs is fine
+
+        console.log(`[ENGINE TRACE] Action resolved as ${type}`);
 
         // 2. Check if we already traded
         const tradeKey = `${opp.marketId}-${type}`;
-        if (this.executedMarketIds.has(tradeKey)) return;
-
-        // 3. Capital Check (Mock for Sim, Real check handled in placeOrder for Live)
-        // For live, we assume we have funds if ClobClient works, or we can check balance if we want.
-        // Sim mode checks local this.balance
+        if (this.executedMarketIds.has(tradeKey)) {
+            console.log(`[ENGINE TRACE] Aborted: Already executed ${tradeKey}`);
+            return;
+        }
 
         // 4. Resolve Price
         let price = type === 'BUY_YES' ? opp.outcomePrices[0] : opp.outcomePrices[1];
         if (!price && price !== 0) price = 1 - opp.outcomePrices[0]; // Fallback
 
+        console.log(`[ENGINE TRACE] Calculated execution price: $${price}`);
+
         // 5. Execute
         // Filter out extreme trash (e.g. price < 0.01 is often unfillable or buggy)
         if (price > 0.01) {
-            this.executeTrade(type, price, opp);
+            console.log(`[ENGINE TRACE] Passing to executeTrade()...`);
+            this.executeTrade(type, price, opp).catch(e => {
+                console.error('[ENGINE TRACE] Exception in executeTrade:', e);
+            });
+        } else {
+            console.log(`[ENGINE TRACE] Aborted: Price ${price} <= 0.01`);
         }
     }
 
     private updateOpenPositions(opp: MarketOpportunity) {
         // Find any OPEN trades for this market
-        const relevantTrades = this.trades.filter(t =>
-            t.status === 'OPEN' &&
-            ((t.marketId && t.marketId === opp.marketId) || (t.question && opp.question && t.question === opp.question))
-        );
+        let relevantTrades;
+        try {
+            relevantTrades = this.trades.filter(t =>
+                t.status === 'OPEN' &&
+                ((t.marketId && t.marketId === opp.marketId) || (t.question && opp.question && t.question === opp.question))
+            );
+        } catch (e) {
+            console.error('trades filter error', e);
+            return;
+        }
 
         for (const trade of relevantTrades) {
             // Get current price for the side we hold
