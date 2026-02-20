@@ -2,8 +2,11 @@ import { ClobClient as PolyClobClient } from '@polymarket/clob-client';
 import { ethers } from 'ethers';
 import * as crypto from 'crypto';
 
-if (!global.crypto) {
-    (global as any).crypto = crypto.webcrypto;
+if (!globalThis.crypto) {
+    (globalThis as any).crypto = crypto.webcrypto;
+}
+if (globalThis.crypto && !globalThis.crypto.subtle && crypto.webcrypto) {
+    (globalThis.crypto as any).subtle = crypto.webcrypto.subtle;
 }
 import * as dotenv from 'dotenv';
 dotenv.config();

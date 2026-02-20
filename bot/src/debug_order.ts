@@ -1,31 +1,40 @@
+import * as crypto from 'crypto';
 
-import { ClobClient } from './clients/ClobClient.js';
+if (!global.crypto) {
+    (global as any).crypto = crypto.webcrypto;
+}
+
+import { ClobClient } from '@polymarket/clob-client';
+import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
 async function main() {
-    console.log("Starting Order Debug...");
+    const pk = process.env.PRIVATE_KEY;
+    const funderAddress = process.env.FUNDER_ADDRESS;
+    const signatureType = process.env.SIGNATURE_TYPE ? parseInt(process.env.SIGNATURE_TYPE) : undefined;
 
-    const client = new ClobClient();
+    if (!pk || !funderAddress) return;
 
-    // Allow init to finish
-    await new Promise(r => setTimeout(r, 2000));
-
-    // Known Token from previous debug
-    const tokenId = '31912206699089681168045007855120858308880251958066452232423703807492346450415';
-
-    console.log("Attempting to place test order...");
-    console.log("Token:", tokenId);
+    const wallet = new ethers.Wallet(pk);
+    const client = new ClobClient('https://clob.polymarket.com', 137, wallet, undefined, signatureType, funderAddress);
+    const creds = await client.deriveApiKey();
+    const authenticatedClient = new ClobClient('https://clob.polymarket.com', 137, wallet, creds, signatureType, funderAddress);
 
     try {
-        // Buy NO at 0.01 (Should sit in book or cancel immediately if FOK)
-        // Using GTC to be safe for testing placement
-        const order = await client.placeOrder(tokenId, 'BUY', 0.01, 5);
-        console.log("SUCCESS:", order);
+        console.log('Attempting to create a local order signature...');
+        const orderArgs: any = {
+            tokenID: '87227787875491260181488543391406726692138176448000553635628229461629207572347', // ETH Yes
+            price: 0.5,
+            side: 'BUY',
+            size: 10,
+            nonce: Date.now(),
+        };
+        const signedOrder = await authenticatedClient.createOrder(orderArgs);
+        console.log('Order created successfully!');
     } catch (e: any) {
-        console.error("FAILURE:");
-        console.error(e);
-        if (e.stack) console.error(e.stack);
+        console.error('Order Signature Error:', e?.message || e);
+        console.error(e.stack);
     }
 }
 
