@@ -47,9 +47,9 @@ function App() {
         const fetchData = async () => {
             try {
                 const [statsRes, pricesRes, oppsRes] = await Promise.all([
-                    axios.get('http://localhost:3001/api/stats'),
-                    axios.get('http://localhost:3001/api/prices'),
-                    axios.get('http://localhost:3001/api/opportunities')
+                    axios.get('/api/stats'),
+                    axios.get('/api/prices'),
+                    axios.get('/api/opportunities')
                 ]);
 
                 setStats(statsRes.data);
