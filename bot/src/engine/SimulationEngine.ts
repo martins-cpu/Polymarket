@@ -99,8 +99,13 @@ export class SimulationEngine {
         // Filter out extreme trash (e.g. price < 0.01 is often unfillable or buggy)
         if (price > 0.01) {
             console.log(`[ENGINE TRACE] Passing to executeTrade()...`);
+
+            // Optimistically lock the market to prevent duplicate async trades
+            this.executedMarketIds.add(tradeKey);
+
             this.executeTrade(type, price, opp).catch(e => {
                 console.error('[ENGINE TRACE] Exception in executeTrade:', e);
+                this.executedMarketIds.delete(tradeKey); // Unlock on failure
             });
         } else {
             console.log(`[ENGINE TRACE] Aborted: Price ${price} <= 0.01`);
@@ -211,7 +216,7 @@ export class SimulationEngine {
         };
 
         const tradeKey = `${opp.marketId}-${type}`;
-        if (this.executedMarketIds.has(tradeKey)) return;
+        // (Has check moved to handleOpportunity to prevent race conditions)
 
         // EXECUTION
         if (this.mode === 'LIVE_TRADING' && this.clobClient) {
@@ -235,7 +240,7 @@ export class SimulationEngine {
 
                 this.reportingService.addTrade(trade); // Persist
                 this.logTradeToCSV(trade);
-                this.executedMarketIds.add(tradeKey);
+                // this.executedMarketIds.add(tradeKey); // Handled optimistically in handleOpportunity
 
                 // Balance update is theoretical until we sync with chain, but keep track locally.
                 this.balance -= tradeSize;
@@ -244,13 +249,14 @@ export class SimulationEngine {
 
             } catch (err: any) {
                 console.error('[LIVE] Execution Failed:', err?.message || err);
+                this.executedMarketIds.delete(tradeKey); // Unlock on failure
                 return;
             }
         }
         else {
             // SIMULATION
             this.reportingService.addTrade(trade);
-            this.executedMarketIds.add(tradeKey);
+            // this.executedMarketIds.add(tradeKey); // Handled optimistically in handleOpportunity
             this.balance -= tradeSize;
             console.log(`[SIMULATION] Executed ${type} on ${opp.asset} @ $${price.toFixed(2)} | Shares: ${shares.toFixed(2)}`);
         }
