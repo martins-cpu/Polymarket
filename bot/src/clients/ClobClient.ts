@@ -15,6 +15,7 @@ export class ClobClient {
     private client: PolyClobClient | null = null;
     private wallet: ethers.Wallet | null = null;
     private chainId = 137; // Polygon Mainnet
+    private isAuthenticated = false;
 
     constructor() {
         this.init();
@@ -72,6 +73,7 @@ export class ClobClient {
                     signatureType,
                     funderAddress
                 );
+                this.isAuthenticated = true;
                 console.log('[CLOB] Authenticated client initialized.');
 
             } catch (authErr) {
@@ -86,6 +88,9 @@ export class ClobClient {
     public async placeOrder(tokenId: string, side: 'BUY' | 'SELL', price: number, size: number) {
         if (!this.client || !this.wallet) {
             throw new Error('CLOB Client not initialized (check PRIVATE_KEY)');
+        }
+        if (!this.isAuthenticated) {
+            throw new Error('CLOB Client is still authenticating API Keys. Order rejected.');
         }
 
         if (price <= 0 || size <= 0) {
@@ -129,12 +134,15 @@ export class ClobClient {
             if (orderRes && orderRes.errorMsg) {
                 throw new Error(`API Rejected Order: ${orderRes.errorMsg}`);
             }
+            if (orderRes && orderRes.error) {
+                throw new Error(`API Rejected Order: ${orderRes.error} (Status: ${orderRes.status})`);
+            }
             if (orderRes && orderRes.success === false) {
                 throw new Error(`Order API Success=false: ${JSON.stringify(orderRes)}`);
             }
 
             const orderIdStr = (orderRes as any).orderID || (orderRes as any).id || ((orderRes as any).order ? (orderRes as any).order.id : JSON.stringify(orderRes).substring(0, 80));
-            console.log(`[CLOB] Order Placed! ID: ${orderIdStr} | Status: ${(orderRes as any).status || 'unknown'}`);
+            console.log(`[CLOB] Order Placed! ID: ${orderIdStr} | Status: ${(orderRes as any).status || 'unknown'} | Body: ${JSON.stringify(orderRes).substring(0, 200)}`);
             return orderRes;
 
         } catch (err: any) {

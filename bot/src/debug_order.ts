@@ -31,7 +31,9 @@ async function main() {
             nonce: Date.now(),
         };
         const signedOrder = await authenticatedClient.createOrder(orderArgs);
-        console.log('Order created successfully!');
+        console.log('Order created successfully. Posting order...');
+        const orderRes = await authenticatedClient.postOrder(signedOrder);
+        console.log('Order posted successfully:', orderRes);
     } catch (e: any) {
         console.error('Order Signature Error:', e?.message || e);
         console.error(e.stack);
