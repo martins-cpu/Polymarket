@@ -16,6 +16,7 @@ interface Stats {
     balance: number;
     openTrades: number;
     totalTrades: number;
+    mode?: string;
     activeTrades?: ActiveTrade[];
 }
 
@@ -69,7 +70,9 @@ function App() {
         <div className="container">
             <header>
                 <h1>Polymarket Bot Dashboard</h1>
-                <div className="status-badge">Simulation Mode</div>
+                <div className={`status-badge ${stats.mode === 'LIVE_TRADING' ? 'live' : ''}`}>
+                    {stats.mode === 'LIVE_TRADING' ? 'Live Trading' : 'Simulation Mode'}
+                </div>
                 <div className="last-update">Last Update: {lastUpdate.toLocaleTimeString()}</div>
             </header>
 
