@@ -1,4 +1,10 @@
 import dotenv from 'dotenv';
+import * as crypto from 'crypto';
+
+if (!global.crypto) {
+    (global as any).crypto = crypto.webcrypto;
+}
+
 import { BinanceClient } from './clients/BinanceClient.js';
 import { CoinbaseClient } from './clients/CoinbaseClient.js';
 import { PolymarketClient } from './clients/PolymarketClient.js';

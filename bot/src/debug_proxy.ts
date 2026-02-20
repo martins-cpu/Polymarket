@@ -1,3 +1,9 @@
+import * as crypto from 'crypto';
+
+if (!global.crypto) {
+    (global as any).crypto = crypto.webcrypto;
+}
+
 import { ClobClient } from '@polymarket/clob-client';
 import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
